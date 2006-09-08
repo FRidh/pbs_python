@@ -22,7 +22,7 @@ from PBSQuery import PBSError
 
 NODES_PER_RACK = 20
 START_RACK = 1
-N_RACKS = 39
+N_RACKS = 36
 
 pbs_ND_single			= 'job (single)'
 pbs_ND_total			= 'total'
@@ -85,12 +85,7 @@ def pbsmon(server = None):
 
 		state = node['state']
 		if string.find(state, ',') >= 0:			# multiple states for a node?
-			state_list = string.split(state, ',')
-			if pbs.ND_down in state_list: 
-				state = pbs.ND_down
-			else:
-				state = string.split(state, ',')[-1]
-				
+			state = string.split(state, ',')[-1]
 
 		state_char = PBS_STATES[state]
 
@@ -204,7 +199,7 @@ def pbsmon_summary(server = None):
 				count_states[pbs.ND_free] -=  1
 				count_states[pbs_ND_single] += 1
 			else:
-				if  node['properties'].find('gigabit') >= 0:
+				if  node['properties'].find('gigabit') == 0:
 					count_states[pbs_ND_free_serial] +=  1 
 				else:
 					count_states[pbs_ND_free_parallel] +=  1 
