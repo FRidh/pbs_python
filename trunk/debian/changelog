@@ -1,3 +1,9 @@
+pbs-python (4.3.4-2) lenny; urgency=low
+
+  * Removed gb- from REGEX new_rack
+
+ -- Dennis Stam <dennis.stam@surfsara.nl>  Tue, 19 Feb 2013 16:54:39 +0100
+
 pbs-python (4.3.4-1) lenny; urgency=low
 
   * See CHANGES 

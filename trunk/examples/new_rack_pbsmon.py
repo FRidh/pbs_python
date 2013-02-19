@@ -59,7 +59,7 @@ OPT_SERVERNAME = None
 # Then we have to set these variables to determine automatically the 
 # number of nodes and racks 
 #
-NODE_EXPR = "gb-r(?P<racknr>[0-9]+)n(?P<nodenr>[0-9]+)" 
+NODE_EXPR = "r(?P<racknr>[0-9]+)n(?P<nodenr>[0-9]+)" 
 
 START_RACK = 1 
 
