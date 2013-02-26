@@ -418,6 +418,12 @@ class _PBSobject(UserDict.UserDict):
     def __iter__(self):
         return iter(self.data.keys())
 
+    def __nonzero__(self):
+        if self.data:
+            return True
+        else:
+            return False
+
     def uniq(self, list):
         """Filter out unique items of a list"""
         uniq_items = {}
