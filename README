@@ -1,11 +1,11 @@
 the latest stable pbs_python interface is available from:
-    ftp://ftp.sara.nl/pub/outgoing/pbs_python.tar.gz
+    ftp://ftp.surfsara.nl/pub/outgoing/pbs_python.tar.gz
 
 Information, documentation and reporting bugs for the package:
-    https://subtrac.sara.nl/oss/pbs_python
+    https://oss.trac.surfsara.nl/oss/pbs_python
 
 bug resport:
-    pbs_python@sara.nl
+    pbs_python@surfsara.nl
 
 =============== Brief description =============================
 Pbs_python interface is a wrapper class for the OPENPBS/TORQUE 
@@ -68,7 +68,7 @@ pbs_joblogin     - logs in to the node as the user who invokes this script
                    (os.getenv('USER'))
 
 For more info about SARA see:
-    http://www.sara.nl/index_eng.html
+    http://www.surfsara.nl/index_eng.html
 
 --
 ********************************************************************

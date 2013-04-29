@@ -1,15 +1,15 @@
 Author:
-	Bas van der Vlies <basv@sara.nl>
+    Bas van der Vlies <bas.vandervlies@surfsara.nl>
 
 Configure and Debian package support: 
-	Yaroslav Halchenko
+    Yaroslav Halchenko
 
 PBSQuery module:
-	Bas van der Vlies
+    Bas van der Vlies
 
 Contributors:
-	Walter de Jong
-	Ramon Bastiaans
-	Dennis Stam
-	Sil Westerveld
-	Roy Dragseth (PBSQuery)
+    Walter de Jong
+    Ramon Bastiaans
+    Dennis Stam
+    Sil Westerveld
+    Roy Dragseth (PBSQuery)
