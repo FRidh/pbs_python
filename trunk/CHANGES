@@ -3,7 +3,18 @@
    was wrong
    Author: Bas van der Vlies
 
-=========== 4.3.4
+ * Added an example how to make use of the EVENT status message:
+    - examples/pbs_script.sh
+   Author: Bas van der Vlies
+
+ * implemented __nonzero__ for PBS dictionary, closes #33, eg:
+    status = getjob(id)
+    if status:
+        do something
+    else:
+        no job
+  Author: Bas van der Vlies
+
  * PBSQuery bugfix. getjob() can now handle short jobname, eg: 
     * p.getjob('6073545') 
 
