@@ -56,7 +56,7 @@ os.chdir('..')
 
 setup ( 
     name = 'pbs_python',
-    version = '4.3.5',
+    version = '4.3.6',
     description = 'openpbs/torque python interface',
     license = 'LGPLV3',
     author = 'Bas van der Vlies',

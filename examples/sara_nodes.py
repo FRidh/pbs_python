@@ -63,7 +63,7 @@ def _print(*args, **kwargs):
 try:
     import argparse
 except ImportError:
-    _print('Cannot find argparse module', file=sys.stderror)
+    _print('Cannot find argparse module', file=sys.stderr)
     sys.exit(1)
 
 ####
