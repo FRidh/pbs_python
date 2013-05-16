@@ -1,3 +1,10 @@
+=========== 4.3.6
+ * Modified sara_nodes.py and new_rack_pbsmon.py so:
+   - We using argparse instead of OptionParser
+   - Changed the print statement to an print function which will work with Python 2.5+
+   - Removed module PBSAdvancedParser.py
+   Author: Dennis Stam
+
 =========== 4.3.5
  * PBSQuery bugfix, parsing of node status line with multiple EVENT: settings
    was wrong
