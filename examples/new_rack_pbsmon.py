@@ -12,9 +12,7 @@
 #
 
 """
-Usage: pbsmon [hosts]....
-
-Specifying hostnames:
+specifying hostnames:
   To specify a range use the [] to indicate a range, a couple of examples:
 
   The first five nodes of rack 16
@@ -33,10 +31,8 @@ import sys
 import re
 import re
 import types
-from optparse import OptionParser
 
 import pbs
-from PBSAdvancedParser import AdvancedParser
 from PBSQuery import PBSQuery
 from PBSQuery import PBSError
 
@@ -101,6 +97,144 @@ PBS_STATES = {
     pbs_ND_total            : ' '
 }
 
+####
+## Rewriting the print function, so it will work with all versions of Python
+def _print(*args, **kwargs):
+    '''A wrapper function to make the functionality for the print function the same for Python2.4 and higher'''
+    ## First try if we are running in Python3 and higher
+    try:
+        Print = eval('print')
+        Print(*args, **kwargs)
+    except SyntaxError:
+        ## Then Python2.6 and Python2.7
+        try:
+            D = dict()
+            exec('from __future__ import print_function\np=print', D)
+            D['p'](*args, **kwargs)
+            del D
+        ## Finally Python2.5 or lower
+        except SyntaxError:
+            del D
+            fout    = kwargs.get('file', sys.stdout)
+            write   = fout.write
+            if args:
+                write(str(args[0]))
+                sep = kwargs.get('sep', ' ')
+                for arg in args[1:]:
+                    write(sep)
+                    write(str(a))
+                write(kwargs.get('end', '\n'))
+
+## Import argparse here, as I need the _print function
+try:
+    import argparse
+except ImportError:
+    _print('Cannot find argparse module', file=sys.stderror)
+    sys.exit(1)
+
+####
+## BEGIN functions for hostrange parsing
+def l_range(start, end):
+    '''The equivalent for the range function, but then with letters, uses the ord function'''
+    start = ord(start)
+    end   = ord(end)
+    rlist = list()
+
+    ## A ord number must be between 96 (a == 97) and 122 (z == 122)
+    if start < 96 or start > 122 and end < 96 or end > 122:
+        raise Exception('You can only use letters a to z')
+    ## If start is greater then end, then the range is invalid
+    elif start > end:
+        raise Exception('The first letter must be smaller then the second one')
+    ## Just revert the ord number to the char
+    for letter in range(start, end + 1):
+        rlist.append(chr(letter))
+    return rlist
+
+def return_range(string):
+    '''This function will return the possible values for the given ranges'''
+
+    ## First check if the first char is valid
+    if string.startswith(',') or string.startswith('-'):
+        raise Exception('Given pattern is invalid, you can\'t use , and - at the beginning')
+
+    numbers_chars        = list()
+    equal_width_length  = 0
+
+    ## First splitup the sections (divided by ,)
+    for section in string.split(','):
+        ## Within a section you can have a range, max two values
+        chars = section.split('-')
+        if len(chars) == 2:
+            ## When range is a digit, simply use the range function
+            if chars[0].isdigit() and chars[1].isdigit():
+                ## Owke, check for equal_width_length
+                if chars[0][0] == '0' or chars[1][0] == '0':
+                    if len(chars[0]) >= len(chars[1]):
+                        equal_width_length = len(chars[0])
+                    else:
+                        equal_width_length = len(chars[1])
+                ## Don't forget the +1
+                numbers_chars += range(int(chars[0]), int(chars[1])+1)
+            ## If one of the two is a digit, raise an exceptio
+            elif chars[0].isdigit() or chars[1].isdigit():
+                raise Exception('I can\'t combine integers with letters, change your range please')
+            ## Else use the l_range
+            else:
+                numbers_chars += l_range(chars[0], chars[1])
+        else:
+            ## If the value of the section is a integer value, check if it has a 0
+            if section.isdigit() and section[0] == '0':
+                if len(section) > equal_width_length:
+                    equal_width_length = len(section)
+            numbers_chars.append(section)
+
+        ## if the equal_width length is greater then 0, rebuild the list
+        ## 01, 02, 03, ... 10
+        if equal_width_length > 0:
+            tmp_list = list()
+            for number_char in numbers_chars:
+                if type(number_char) is types.IntType or number_char.isdigit():
+                    tmp_list.append('%0*d' % ( equal_width_length, int(number_char)))
+                else:
+                    tmp_list.append(number_char)
+            numbers_chars = tmp_list
+
+    return numbers_chars
+
+def product(*args, **kwargs):
+    '''Taken from the python docs, does the same as itertools.product, 
+    but this also works for py2.5'''
+    pools = map(tuple, args) * kwargs.get('repeat', 1)
+    result = [[]]
+    for pool in pools:
+        result = [x+[y] for x in result for y in pool]
+    for prod in result:
+        yield tuple(prod)
+
+def parse_args(args):
+    rlist = list()
+    for arg in args:
+        parts = re.findall(HOSTRANGE, arg)
+        if parts:
+            ## create a formatter string, sub the matched patternn with %s
+            string_format = re.sub(HOSTRANGE, '%s', arg)
+            ranges = list()
+
+            ## detect the ranges in the parts
+            for part in parts:
+                ranges.append(return_range(part))
+            
+            ## produce the hostnames
+            for combination in product(*ranges):
+                rlist.append(string_format % combination)
+        else:
+            rlist.append(arg)
+    return rlist
+
+## END functions for hostrange parsing
+####
+
 def sanitize_jobs( jobs ):
 
     ljobs = list()
@@ -140,7 +274,7 @@ def get_nodes( racknode=False, hosts=None ):
         else:
             p = PBSQuery( OPT_SERVERNAME )
     except PBSError, reason:
-        print 'Error: %s' % reason
+        _print('Error: %s' % reason)
         sys.exit( -1 )
 
     p.new_data_structure()
@@ -150,7 +284,7 @@ def get_nodes( racknode=False, hosts=None ):
     try:
         nodes = p.getnodes( attr )
     except PBSError, reason:
-        print 'Error: %s' % reason
+        _print('Error: %s' % reason)
         sys.exit( -1 )
 
     number_of_racks = 0
@@ -263,8 +397,8 @@ def print_table():
     ## Code herebelow has been taken from the new_rack_pbsmon.py
     save_column = None
     
-    print    
-    print '  ',
+    _print()    
+    _print('  ', end=' ')
     for rack in xrange( START_RACK, racknr + 1 ):
         
         if not ( rack % 10 ):
@@ -278,35 +412,35 @@ def print_table():
                 if save_column:
                     char = save_column
                     save_column = None
-                print char,
+                _print(char, end=' ')
         else:
-            print char,
-    print    
+            _print(char, end=' ')
+    _print()    
 
-    print '  ',
+    _print('  ', end=' ')
     for rack in xrange( START_RACK, racknr + 1 ):
         
         char = rack % 10
         if OPT_SKIP_EMPTY_RACKS:
             if nodes.has_key( rack ):
-                print char,
+                _print(char, end=' ')
         else:
-            print char,
-    print
+            _print(char, end=' ')
+    _print()
 
     for node in xrange( 1, nodenr + 1 ):
-        print '%2d' % node,
+        _print('%2d' % node, end=' ')
 
         for rack in xrange( START_RACK, racknr + 1 ):
             if OPT_SKIP_EMPTY_RACKS:
                 if not nodes.has_key( rack ):
                     continue
             try:
-                print nodes[ rack ][ node ][ 'state_char' ],
+                _print(nodes[ rack ][ node ][ 'state_char' ], end=' ')
             except KeyError:
-                print ' ',
-        print
-    print
+                _print(' ', end=' ')
+        _print()
+    _print()
 
 def print_table_summary():
     global PBS_STATES
@@ -318,7 +452,7 @@ def print_table_summary():
         else:
             p = PBSQuery( OPT_SERVERNAME )
     except PBSError, reason:
-        print 'error: %s' % reason
+        _print('error: %s' % reason)
         sys.exit(-1)
 
     # get the state of the nodes
@@ -326,7 +460,7 @@ def print_table_summary():
     try:
         nodes = p.getnodes(attr)
     except PBSError, reason:
-        print 'error: %s' % reason
+        _print('error: %s' % reason)
         sys.exit(-1)
 
     node_dict = {}
@@ -350,7 +484,7 @@ def print_table_summary():
 
         if node.is_free():                          # can happen for single CPU jobs
             if node.has_job():
-#               print 'TD: %s' % nodename, node
+#               _print('TD: %s' % nodename, node)
                 state_char = PBS_STATES[pbs_ND_single]
                 count_states[pbs.ND_free] -=  1
                 count_states[pbs_ND_single] += 1
@@ -362,7 +496,7 @@ def print_table_summary():
                 #else:
                 #   count_states[pbs_ND_free_serial] +=  1 
                 
-#       print 'TD: %s %s' % (nodename, state_char)
+#       print_('TD: %s %s' % (nodename, state_char))
         dummy = nodename.split('-')
         if len( dummy ) > 1:
             node_dict[dummy[1]] = state_char
@@ -374,11 +508,11 @@ def print_table_summary():
 
     n = 0
     for state in legend:
-        print '  %s  %-13s : %-5d' % (PBS_STATES[state], state, count_states[state]),
+        _print('  %s  %-13s : %-5d' % (PBS_STATES[state], state, count_states[state]), end=' ')
 
         n = n + 1
         if not (n & 1):
-            print
+            _print()
 
 def print_extended( hosts=None ):
     global LENGTH_NODE
@@ -401,53 +535,53 @@ def print_extended( hosts=None ):
 
         rows_str.append( row_str )
 
-    print
-    print row_header
-    print EXTENDED_PATTERNS[ 'line' ] % ( EXTENDED_PATTERNS[ 'line_char' ] * LENGTH_ROW )
-    print '\n'.join( rows_str )
-    print
+    _print()
+    _print(row_header)
+    _print(EXTENDED_PATTERNS[ 'line' ] % ( EXTENDED_PATTERNS[ 'line_char' ] * LENGTH_ROW ))
+    _print('\n'.join( rows_str ))
+    _print()
 
 if __name__ == '__main__':
     
-    parser = AdvancedParser(usage=__doc__)
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=__doc__,
+    )
 
-    parser.add_option( "-t", "--table", dest="table", action="store_true", help="Show an table" )
-    parser.add_option( "-l", "--list", dest="extended", action="store_true", help="Show node rows with state and jobinfo" )
-    parser.add_option( "-s", "--summary", dest="summary", action="store_true", help="Display a short summary" )
-    parser.add_option( "-a", "--all", dest="summary", action="store_true", help="Display a short summary" )
+    parser.add_argument('nodes', metavar='NODES', nargs='*', type=str)
+    parser.add_argument( "-t", "--table", dest="table", action="store_true", help="Show an table", default=PRINT_TABLE )
+    parser.add_argument( "-l", "--list", dest="extended", action="store_true", help="Show node rows with state and jobinfo", default=PRINT_EXTENDED )
+    parser.add_argument( "-s", "--summary", dest="summary", action="store_true", help="Display a short summary", default=False )
+    parser.add_argument( "-a", "--all", dest="summary", action="store_true", help="Display a short summary" )
+    parser.add_argument( "-w", "--wide", dest="wide", action="store_true", help="Wide display for node status ( only when -t is used )" )
+    parser.add_argument( "-S", "--servername", dest="servername", help="Change the default servername", default=None )
 
-    parser.add_option( "-w", "--wide", dest="wide", action="store_true", help="Wide display for node status ( only when -t is used )" )
-    parser.add_option( "-S", "--servername", dest="servername", help="Change the default servername" )
+    args = parser.parse_args()
+    if args.nodes:
+        args.nodes = parse_args(args.nodes)
 
-    parser.set_defaults( table=PRINT_TABLE )
-    parser.set_defaults( summary=False )
-    parser.set_defaults( extended=PRINT_EXTENDED )
-    parser.set_defaults( servername=None )
+    if args.servername:
+        OPT_SERVERNAME = args.servername
 
-    ( options, args ) = parser.parse_args()
-
-    if options.servername:
-        OPT_SERVERNAME = options.servername
-
-    if options.wide:
+    if args.wide:
         OPT_SKIP_EMPTY_RACKS = False
 
-    if args:
-        options.extended = True
+    if args.nodes:
+        args.extended = True
 
-    if options.extended and PRINT_TABLE:
-        options.table = False
+    if args.extended and PRINT_TABLE:
+        args.table = False
 
-    if options.table and PRINT_EXTENDED:
-        options.extended = False
+    if args.table and PRINT_EXTENDED:
+        args.extended = False
 
-    if options.extended:
-        print_extended( args ) 
-    elif options.table:
+    if args.extended:
+        print_extended( args.nodes ) 
+    elif args.table:
         print_table()
     else:
-        print 'Something is wrong, bye!'
+        _print('Something is wrong, bye!', file=sys.stderr)
         sys.exit( -1 )
 
-    if options.summary:
+    if args.summary:
         print_table_summary()
