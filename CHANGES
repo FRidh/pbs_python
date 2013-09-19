@@ -1,3 +1,8 @@
+=========== 4.3.7
+ * pbs_jobmonitor/pbs_joblogin ported to torque 2.5 to fix jobarrays
+  Author: Willem Vermin (SURFsara)
+  Applied by: Bas van der Vlies
+  
 =========== 4.3.6
  * Modified sara_nodes.py and new_rack_pbsmon.py so:
    - We using argparse instead of OptionParser
