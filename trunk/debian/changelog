@@ -1,3 +1,9 @@
+pbs-python (4.3.7-1) lenny; urgency=low
+
+  * See CHANGESk
+
+ -- Bas van der Vlies <bas.vandervlies@surfsara.nl>  Thu, 19 Sep 2013 14:11:56 +0200
+
 pbs-python (4.3.6-1) lenny; urgency=low
 
   * See Changes
