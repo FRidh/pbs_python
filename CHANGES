@@ -9,6 +9,10 @@
  Inspired by: stijn dot deweirdt at ugent dot be
  Author: Bas van der Vlies
 
+ * docdir is now configurable, closes #37
+ Author: jens dot timmerman add ugent dot be
+ Applied by: Bas van der Vlies
+
 =========== 4.3.7
  * pbs_jobmonitor/pbs_joblogin ported to torque 2.5 to fix jobarrays
   Author: Willem Vermin (SURFsara)
