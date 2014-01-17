@@ -1,4 +1,4 @@
-AC_INIT(src/pbs_2.4.py)
+AC_INIT(src/PBSQuery.py)
 AC_SUBST(prefix)
 AC_SUBST(exec_prefix)
 AC_SUBST(pyexecdir)
