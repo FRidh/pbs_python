@@ -1,3 +1,14 @@
+=========== 4.4.0
+ * Drop support for versions older then 2.4
+ Author: Bas van der Vlies
+
+ * Added support for torque version >= 4.2
+ Author: Bas van der Vlies
+
+ * rewrote setup.py.in
+ Inspired by: stijn dot deweirdt at ugent dot be
+ Author: Bas van der Vlies
+
 =========== 4.3.7
  * pbs_jobmonitor/pbs_joblogin ported to torque 2.5 to fix jobarrays
   Author: Willem Vermin (SURFsara)
