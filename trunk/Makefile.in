@@ -5,7 +5,7 @@ PREFIX=@prefix@
 exec_prefix=$(PREFIX)
 BINDIR=$(PREFIX)/bin
 
-DOCDIR=/usr/share/doc/pbs-python
+DOCDIR=@docdir@ 
 EXAMPLES=$(DOCDIR)/examples
 
 .PHONY: install pythonlib
