@@ -7,8 +7,10 @@
 
 import sys
 import os
+import glob
 
 from distutils.core import setup, Extension 
+from distutils.version import LooseVersion
 
 # Strip off the -L it is also added by the python setup tools
 #
@@ -22,41 +24,52 @@ if not PBS_LIB_DIR:
 
 LIBS = ['torque']
 
-### Make symlinks to right torque version
-#
 VERSION = "@pbs_version@"
-tmp = VERSION.split('.')
+SOURCE_DIR='src'
 
-major_version = int(tmp[0])
-minor_version = int(tmp[1])
-#build_version = int(tmp[2])
-build_version = int(tmp[2].split('-')[0])
+os.chdir(SOURCE_DIR)
 
-
-os.chdir('src')
-
-## Always unlink previous links
-#
 try:
     os.unlink('pbs.py')
-    os.unlink('pbs_wrap.c')
 except OSError:
     pass
 
-if major_version  >= 2 and minor_version >= 4 and build_version >= 7:
-    os.symlink('pbs_wrap_2.4.c', 'pbs_wrap.c')
-    os.symlink('pbs_2.4.py', 'pbs.py')
-    TORQUE_VERSION='TORQUE_2_4'
+if LooseVersion(VERSION) >= LooseVersion('4.2'):
+
+    inc=os.environ.get('PBS_PYTHON_INCLUDEDIR','/usr/include/torque')
+    os.environ['CC']='g++'
+    os.environ['CFLAGS']=' '.join(os.environ.get('CFLAGS','').split(' ')+['-I%s'%inc]) 
+    
+    if not os.path.exists(os.path.join(inc,'log.h')):
+        print 'Failed to find log.h in inlcude dir %s. (Set incude dir via PBS_PYTHON_INCLUDEDIR variable)'%inc
+        sys.exit(2)
+  
+    for fn in glob.glob('*.h'):
+        os.remove(fn)
+     
+    TORQUE_VERSION='TORQUE_4'
+    SOURCE_FILE='src/C++/pbs_wrap.cxx'
+
+    os.symlink('C++/pbs.py', 'pbs.py')
+
+elif LooseVersion(VERSION) >= LooseVersion('2.4'):
+
+    TORQUE_VERSION='TORQUE_2'
+    SOURCE_FILE='src/C/pbs_wrap.c'
+
+    os.symlink('C++/pbs.py', 'pbs.py')
+
 else:
-    os.symlink('pbs_wrap_2.1.c', 'pbs_wrap.c')
-    os.symlink('pbs_2.1.py', 'pbs.py')
-    TORQUE_VERSION='TORQUE_OLD'
+
+    print "Version: %s is not supported" %(VERSION)
+    sys.exit(1)
+
 
 os.chdir('..')
 
 setup ( 
     name = 'pbs_python',
-    version = '4.3.6',
+    version = '4.8.0',
     description = 'openpbs/torque python interface',
     license = 'LGPLV3',
     author = 'Bas van der Vlies',
@@ -65,11 +78,11 @@ setup (
 
 
     extra_path = 'pbs',
-        package_dir = { '' : 'src' }, 
-        py_modules = [ 'pbs', 'PBSQuery', 'PBSAdvancedParser' ], 
+        package_dir = { '' : SOURCE_DIR }, 
+        py_modules = [ 'pbs',  'PBSQuery'], 
 
     ext_modules = [ 
-        Extension( '_pbs', ['src/pbs_wrap.c'],
+        Extension( '_pbs', [SOURCE_FILE],
         library_dirs = [ PBS_LIB_DIR ],
         extra_link_args = [ PBS_LIB_COMPILE_LINE ],
         define_macros =  [ (TORQUE_VERSION, None) ],
