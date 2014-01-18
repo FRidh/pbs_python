@@ -1,0 +1,8 @@
+This is the development environment for swig to generate the pbs_python files that are used in the pbs_python package.
+There are two directories:
+ * C    ---> Is for torque versions 2.4/2.5 and maybe 3.X (not tested)
+ * C++  ---> Torque 4.X version switched to C++. This version is tested with 4.2-dev
+
+
+If you want to assist in the development of the pbs_python package ask for write access:
+ * email: pbs_python@susrfsara.nl

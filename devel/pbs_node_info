@@ -1,0 +1,37 @@
+#!/usr/bin/python
+
+import pbs
+import sys
+import time
+import socket
+
+def main():
+  server = pbs.pbs_default()
+  c      = pbs.pbs_connect(server)
+
+  nodes = pbs.pbs_statnode(c, '', 'NULL', 'NULL')
+
+  for node in nodes:
+    print node.name
+    attrs = node.attribs
+    for attr in attrs:
+      print '\t', attr.name, ' = ', attr.value
+
+    try:
+      mom_port = socket.getservbyname('pbs_resmom', 'tcp')
+      mom_id = pbs.openrm(node.name, mom_port)
+    except socket.error, detail:
+      mom_id = pbs.openrm(node.name, pbs.PBS_MANAGER_SERVICE_PORT)
+
+    mom_keys = pbs.get_mom_values(mom_id)
+    for key in mom_keys.keys():
+      print '\t %s = %s' %(key, mom_keys[key])
+
+    print 'Testing list with user supplied keywords'
+
+    l = [ 'ncpus', 'loadave' ]
+    mom_keys = pbs.get_mom_values(mom_id, l)
+    for key in mom_keys.keys():
+      print '\t %s = %s' %(key, mom_keys[key])
+
+main()

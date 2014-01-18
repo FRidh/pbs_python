@@ -1,0 +1,11 @@
+#!/bin/bash
+# Author: Bas van der Vlies <bas.vandervlies@surfsara.nl>
+
+set -x
+
+#swig -v -python -shadow -debug-tmsearch   pbs.i
+swig -v -python -shadow pbs.i
+
+#g++  -fPIC -DDEBUG -I/usr/include/python2.7 -c pbs_wrap.cxx -o pbs_wrap.o
+g++  -fPIC -DDEBUG -I/usr/include/python2.7 -c pbs_wrap.c -o pbs_wrap.o
+g++ --shared pbs_wrap.o -o _pbs.so -L/usr/local/lib -ltorque

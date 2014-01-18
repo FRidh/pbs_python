@@ -1,0 +1,484 @@
+#!/usr/bin/env python
+#
+# Author: Dennis Stam
+# Date  : 14-05-2009
+# Desc. : This program/module allows you to change
+#         the state of a node to offline or down
+#
+# SVN Info:
+#       $Id: sara_nodes 3904 2009-06-26 13:16:35Z bas $
+#       $URL: https://subtrac.sara.nl/hpcv/svn/beowulf/trunk/torque/utils/sara_nodes $
+#
+
+# import from the sara_python_modules
+from sara import AdvancedParser
+
+# imports of the pbs_python module
+import PBSQuery
+import pbs
+
+# python core modules
+from optparse import make_option
+import types
+import sys
+import re
+import os
+import time
+
+__author__ = 'Dennis Stam'
+__version__ = '2.2.6'
+
+# Specify here your BATCH name pattern, this is
+# used for sorting when you are using basenames
+RE_PATTERN = '(r\d+n\d+)'
+
+class sara_nodesException( Exception ):
+
+        def __init__(self, msg='' ):
+                self.msg = msg
+                Exception.__init__( self, msg )
+
+        def __repr__(self):
+                return self.msg
+
+        def islist(self):
+                if type(self.msg) is types.ListType:
+                        return True
+
+                return False
+
+        def getlist(self):
+                return self.msg
+
+class sara_nodesCli:
+        '''
+        This class is the Command Line Interface from here we call the sara_nodes class / module
+        '''
+        option_list = [
+                make_option( '-v', '--verbose', dest='verbose', action='store_true', help='enables verbose mode' ),
+                make_option( '-n', '--dry-run', dest='dryrun', action='store_true', help='enables dry-run mode' ),
+                make_option( '-q', '--quiet', dest='quiet', action='store_true', help='enable this function to supress all feedback'),
+                make_option( '-o', '--offline', dest='offline', help='change state to offline', metavar='NOTE' ),
+                make_option( '-c', '--clear', dest='clear', action='store_true', help='change state to down' ),
+                make_option( '-N', '--clearnote', dest='note', action='store_true', help='clear note of node' ),
+                make_option( '-m', '--modify', dest='modify', help='use this option the modify the note, it will replace the current one!', metavar='NOTE' ),
+                make_option( '-t', '--ticket', dest='ticket', help='add/change/remove ticket number, removing use -t c' ),
+        ]
+
+        def __init__(self):
+                '''
+  sara_nodes [ <options> <nodenames> | [nodenames] ]
+                '''
+                self.obj_sara_nodes = sara_nodes()
+                self.parser = AdvancedParser.AdvancedParser( option_list=self.option_list, version='sara_nodes version %s, %s' % (__version__,__author__), usage=self.__init__.__doc__)
+
+
+                self.parser.set_default('verbose', False)
+                self.parser.set_default('dryrun', False)
+                self.parser.set_default('offline', False)
+                self.parser.set_default('clear', False)
+                self.parser.set_default('note', False)
+                self.parser.set_default('quiet', False)
+                self.parser.set_default('ticket', None)
+                self.parser.set_default('modify', False)
+
+                options, args = self.parser.parse_args()
+
+                if not options.quiet:
+                        self.obj_sara_nodes.dryrun = options.dryrun
+
+                        if options.dryrun or options.verbose:
+                                self.obj_sara_nodes.verbose = True
+
+                if str( options.offline ).rstrip() == '' or str( options.modify ).rstrip() == '':
+                        if not options.quiet:
+                                print 'usage:%s' % self.__init__.__doc__
+                                print 'sara_nodes: error: option requires an argument'
+
+                        sys.exit( 1 )
+                
+                try:
+                        if options.offline and not options.clear:
+                                if args:
+                                        self.obj_sara_nodes.pbs_change_state_offline( args, options.offline, options.ticket )
+                                else:
+                                        raise sara_nodesException, 'No hostnames given'
+                        elif options.clear and not options.offline:
+                                if args:
+                                        self.obj_sara_nodes.pbs_change_state_down( args )
+                                else:
+                                        raise sara_nodesException, 'No hostnames given'
+                        elif options.note:
+                                if args:
+                                        self.obj_sara_nodes.pbs_change_note_clear( args )
+                                else:
+                                        raise sara_nodesException, 'No hostnames given'
+                        elif options.modify:
+                                if args:
+                                        self.obj_sara_nodes.pbs_change_note( args, options.modify, options.ticket )
+                                else:
+                                        raise sara_nodesException, 'No hostnames given'
+                        elif options.ticket:
+                                if args:
+                                        self.obj_sara_nodes.pbs_change_note_ticket( args, options.ticket )
+                                else:
+                                        raise sara_nodesException, 'No hostnames given'
+                        else:
+                                if not options.quiet:
+                                        print '\n Use option --help for help'
+                                self.print_list(args, options)
+
+                except sara_nodesException, msg:
+                        if not options.quiet:
+                                print 'usage:%s' % self.__init__.__doc__
+
+                                if msg.islist():
+                                        print 'sara_nodes: error: list:'
+
+                                        for item in msg.getlist():
+                                                print '\t', item
+                                else:
+                                        print 'sara_nodes: error:', str( msg )
+
+                        sys.exit( 1 )
+
+        def list_create_space( self, length, max ):
+                '''
+                This method returns the amount of empty spaces that's required
+                '''
+                if max > length:
+                        return ' ' * ( max - length )
+                else:
+                        return ''
+
+        def print_note( self, pre_parts ):
+
+                if len( pre_parts ) == 5:
+                        pre_parts[0] = pre_parts[0].strip()
+                        pre_parts[1] = pre_parts[1].strip()
+                        pre_parts[2] = '%s%s' % ( pre_parts[2].strip(), self.list_create_space( len( pre_parts[2].strip() ), 6 ) )
+                        pre_parts[3] = '%s%s' % ( pre_parts[3].strip(), self.list_create_space( len( pre_parts[3].strip() ), 5 ) )
+                        return '%s, %s %s %s: %s' % ( pre_parts[0], pre_parts[1], pre_parts[2], pre_parts[3], ','.join( pre_parts[4:] ) )
+                else:
+                        return ' '.join( pre_parts )
+
+        def print_table( self, node_list, pbs_nodes ):
+                '''
+                This method prints the rows of a table
+                '''
+                try:
+                        for node in node_list:
+				note = '' 
+				if pbs_nodes[ node ].has_key('note'):
+				 	note = pbs_nodes[ node ]['note']
+
+                                if self.allowed_state( pbs_nodes[ node ]['state'] ) or note:
+
+                                        length_node = len( node )
+                                        length_state = len( ','.join( pbs_nodes[ node ]['state'] )  )
+
+                                        note_node = ' %s%s|' % ( node, self.list_create_space( length_node, 10 ) )
+                                        note_state = ' %s%s|' % ( ','.join( pbs_nodes[ node ]['state'] ), self.list_create_space( length_state, 19 ) )
+                                        note_note = ' %s' % self.print_note( note )
+
+                                        print '%s%s%s' % ( note_node, note_state, note_note )
+                except KeyError, e:
+                        raise sara_nodesException, 'Given host does not exist'
+
+        def print_list(self, args, options):
+                '''
+                A method that is used for collecting all nodes with the state down, offline or unknown
+                '''
+
+                header = ' Nodename%s| State%s| Note' % ( self.list_create_space( len('Nodename'), 10 ), self.list_create_space( len('State'), 19) )
+		if not options.quiet:
+                	print '\n%s\n%s' % ( header, ( '-' * 80 ) )
+                
+                p = PBSQuery.PBSQuery()
+                # Enable new data_structure to be prepared for release 4.0
+                p.new_data_structure()
+                nodes = p.getnodes( ['state', 'note'] )
+
+                if args:
+                        args = self.sort_nodes( args )
+                        self.print_table( args[0], nodes )
+                else:
+                        sorted_nodes, sorted_other = self.sort_nodes( nodes )
+
+                        self.print_table( sorted_other, nodes )
+                        self.print_table( sorted_nodes, nodes )
+
+        def real_sort( self, inlist ):
+                '''
+                Use this method instead of the x.sort(), because with x.sort()
+                numeric values in a string are not correctly sorted!
+                '''
+                indices = map(self._generate_index, inlist )
+                decorated = zip( indices, inlist )
+                decorated.sort()
+
+                return [ item for index, item in decorated ]
+
+        def _generate_index( self, str ):
+                '''
+                Spliting a strng in aplha and numeric elements
+                '''
+
+                index = []
+
+                def _append( fragment, alist=index ):
+                        if fragment.isdigit():
+                                fragment = int( fragment )
+                        alist.append( fragment )
+
+                prev_isdigit = str[0].isdigit()
+                current_fragment = ''
+
+                for char in str:
+                        curr_isdigit = char.isdigit()
+
+                        if curr_isdigit == prev_isdigit:
+                                current_fragment += char
+                        else:
+                                _append( current_fragment )
+                                current_fragment = char
+                                prev_isdigit = curr_isdigit
+
+                _append( current_fragment )
+
+                return tuple( index )
+
+        def sort_nodes(self, nodes):
+                '''
+                Sorts the nodes list and returns two lists
+                the first the nodes secondly the other machines
+
+                When RE_PATTERN is not supplied then all names
+                will be sorted the same way.
+                '''
+
+                if not globals().has_key('RE_PATTERN'):
+                        global RE_PATTERN 
+                        RE_PATTERN = ''
+
+                pattern = re.compile( RE_PATTERN, re.VERBOSE )
+
+                tmplist = list()
+                tmplist_other = list()
+
+                for node in nodes:
+                        match = pattern.findall( node )
+
+                        if match and len( match ) == 1:
+                                tmplist.append( node )
+                        else:
+                                tmplist_other.append( node )
+
+                tmplist = self.real_sort( tmplist )
+                tmplist_other.sort()
+
+                return tmplist, tmplist_other
+
+        def allowed_state(self, state):
+                '''
+                This method checks is a node complies with the following states: 
+                down, offline and or unknown
+                '''
+                allowed_list = set( ['down', 'offline', 'unknown'] )
+
+                return bool( allowed_list.intersection( set( state ) ) )
+
+class sara_nodes:
+
+        def __init__(self):
+                '''
+                Just initialize two optional variables
+                '''
+                self.dryrun = False
+                self.verbose = False
+
+        def note_check_ticket( self, ticketno, oldticket ):
+                
+                if ticketno:
+                        try:
+                            return '#%d' % int( ticketno )
+                        except ValueError:
+                                if ticketno == 'c':
+                                        return ''
+
+                return oldticket
+
+        def note_return_username( self, old_username ):
+                username = os.getlogin()
+
+                if username != 'root':
+                        return username
+                else:
+                        return old_username
+
+        def note_create( self, new_note, mode = 'a', old_note = None ):
+                if mode == 'w':
+                        return new_note
+                else:
+                        if old_note and old_note.find( new_note ) < 0:
+                                return '%s, %s' % ( old_note, new_note )
+                        else:
+                                return new_note
+
+        def note_init( self ):
+                current_date = time.strftime( '%d-%m %H:%M', time.localtime() )
+                current_username = os.getlogin()
+
+                return [ current_date, current_date, current_username, '' ]
+
+        def note( self, node, note_attr ):
+                '''
+                This method combines all note methods and returns the new note
+                '''
+                self.verbose_print('note %s : %s' %(node, note_attr))
+
+                p = PBSQuery.PBSQuery()
+                p.new_data_structure()
+
+                pbs_info = p.getnode( node, ['note'] )
+                pre_parts = list()
+                old_note = None
+                new_note = None
+
+                if pbs_info.has_key( 'note' ):
+                        pbs_note = pbs_info[ 'note' ]
+                        if len( pbs_note ) > 4:
+                                pre_parts = pbs_note[:4]
+                                old_note = ', '.join( pbs_note[4:] )
+
+                                pre_parts[1] = time.strftime( '%d-%m %H:%M', time.localtime() )
+                                pre_parts[2] = self.note_return_username( pre_parts[2] )
+
+                else:
+                        pre_parts = self.note_init()
+
+		if note_attr.has_key( 'ticket' ):
+                	pre_parts[3] = self.note_check_ticket( note_attr['ticket'], pre_parts[3] )
+
+                if note_attr.has_key( 'note' ) and note_attr.has_key( 'mode' ):
+                        if note_attr[ 'note' ] and note_attr[ 'mode' ] in [ 'a','w' ]:
+                                if old_note:
+                                        new_note = self.note_create( note_attr[ 'note' ], note_attr[ 'mode' ], old_note )
+                                else:
+                                        new_note = self.note_create( note_attr[ 'note' ], note_attr[ 'mode' ] )
+                        else:
+                                new_note = old_note
+
+                return '%s,%s' % ( ','.join( pre_parts ), new_note )
+
+        def verbose_print( self, msg ):
+                if self.verbose:
+                        print msg
+
+        def pbs_change_note_clear( self, nodes ):
+                attributes = pbs.new_attropl(1)
+                attributes[0].name = 'note'
+                attributes[0].value = ''
+
+                self.verbose_print( 'pbs_change_note_clear' )
+                self.pbs_batch( nodes, attributes )
+
+        def pbs_change_note_ticket( self, nodes, ticket ):
+                note_attributes = { 'note': None, 'ticket': ticket, 'mode': 'a' }
+                self.verbose_print( 'pbs_change_note_ticket : %s' % ( ticket  ) )
+                self.pbs_batch( nodes, None, note_attributes)
+
+        def pbs_change_note( self, nodes, note, ticket=None ):
+                note_attributes = { 'note': note, 'ticket': ticket, 'mode': 'w' }
+
+                self.verbose_print( 'pbs_change_note : %s' % (note ) )
+                if ticket:
+                	self.verbose_print( 'pbs_change_note : %s' % (ticket ) )
+
+                self.pbs_batch( nodes, None, note_attributes)
+
+        def pbs_change_state_offline( self, nodes, note, ticket=None ):
+                attributes = pbs.new_attropl(1)
+                attributes[0].name = 'state'
+                attributes[0].value = 'offline'
+
+                note_attributes = { 'note': note, 'ticket': ticket, 'mode': 'a' }
+
+                self.verbose_print( 'State%s: offline' % ( ' ' * ( 12 - 5 ) ) )
+                self.verbose_print( 'Note%s: %s' % ( ' ' * ( 12 - 4 ), note ) )
+                if ticket:
+                        self.verbose_print( 'Ticket%s: %s' % ( ' ' * ( 12 - 6 ), ticket ) )
+                self.pbs_batch( nodes, attributes, note_attributes )
+
+        def pbs_change_state_down( self, nodes ):
+                attributes = pbs.new_attropl(2)
+                attributes[0].name = 'state'
+                attributes[0].value = 'down'
+
+                attributes[1].name = 'note'
+                attributes[1].value = ''
+
+                self.verbose_print( 'State%s: down' % ( ' ' * ( 12 - 5 ) ) )
+                self.verbose_print( 'Note%s: cleared' % ( ' ' * ( 12 - 4 ) ) )
+                self.pbs_batch( nodes, attributes )
+
+        def pbs_batch( self, nodes, attrs=None, note_attributes=None ):
+                self.verbose_print('pbs_batch')
+		print attrs
+		print note_attributes
+                nodeserror = list()
+
+                if not attrs and not note_attributes:
+                        raise sara_nodesException, 'attrs and note_attributes can not be empty together!'
+
+                if not self.dryrun:
+                        pbs_server = pbs.pbs_default()
+
+                        if not pbs_server:
+                                raise sara_nodesException, 'Default pbs server not found!'
+
+                        if note_attributes and len( note_attributes ) == 3:
+                                if attrs:
+                                        attributes = attrs + pbs.new_attropl(1)
+                                        attributes[1].name = 'note'
+                                else:
+                                        attributes = pbs.new_attropl(1)
+                                        attributes[0].name = 'note'
+                        else:
+                                attributes = attrs
+
+                        pbs_connection = pbs.pbs_connect( pbs_server )
+
+                        for node in nodes:
+                                if note_attributes and len( note_attributes ) == 3:
+                                        try:
+                                                if attrs:
+                                                        attributes[1].value = self.note( node, note_attributes )
+							print attributes[1].value 
+                                                else:
+                                                        attributes[0].value = self.note( node, note_attributes )
+							print attributes[0].value 
+                                        except KeyError:
+                                                pass
+
+                                rcode = pbs.pbs_manager( pbs_connection, pbs.MGR_CMD_SET, pbs.MGR_OBJ_NODE, node, attributes, 'NULL' )
+                                if rcode > 0:
+                                        errno, text = pbs.error()
+                                        nodeserror.append( '%s: %s (%s)' % ( node, text, errno ) )
+                else:
+                        p = PBSQuery.PBSQuery()
+                        pbsnodes = p.getnodes().keys()
+
+                        print 'Nodes:'
+
+                        for node in nodes:
+                                if node in pbsnodes:
+                                        print '\t-', node
+                                else:
+                                        nodeserror.append( '%s: does not exist' % node )
+
+                if len( nodeserror ) > 0:
+                        raise sara_nodesException, nodeserror
+
+if __name__ == '__main__':
+        sara_nodesCli()

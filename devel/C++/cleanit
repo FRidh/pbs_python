@@ -1,0 +1,5 @@
+#!/bin/bash
+
+set -x
+
+rm pbs.py _pbs.so pbs_wrap.o pbs.pyc pbs_wrap.c
