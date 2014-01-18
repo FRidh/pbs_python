@@ -1,0 +1,92 @@
+#!/usr/bin/env python
+#
+# $Id: setup.py 434 2005-11-04 15:02:07Z bas $
+#
+# set ts=4
+#
+
+import sys
+import os
+import glob
+
+from distutils.core import setup, Extension 
+from distutils.version import LooseVersion
+
+# Strip off the -L it is also added by the python setup tools
+#
+PBS_LIB_COMPILE_LINE='@pbs_library_compile_line@'
+PBS_LIB_DIR='@pbs_library_dir@'
+
+if not PBS_LIB_DIR:
+    print 'Please specify where the PBS libraries are!!'
+    print 'edit setup.py and fill in the PBS_LIB_DIR variable'
+    sys.exit(1)
+
+LIBS = ['torque']
+
+VERSION = "@pbs_version@"
+SOURCE_DIR='src'
+
+os.chdir(SOURCE_DIR)
+
+try:
+    os.unlink('pbs.py')
+except OSError:
+    pass
+
+if LooseVersion(VERSION) >= LooseVersion('4.2'):
+
+    inc=os.environ.get('PBS_PYTHON_INCLUDEDIR','/usr/include/torque')
+    os.environ['CC']='g++'
+    os.environ['CFLAGS']=' '.join(os.environ.get('CFLAGS','').split(' ')+['-I%s'%inc]) 
+    
+    if not os.path.exists(os.path.join(inc,'log.h')):
+        print 'Failed to find log.h in inlcude dir %s. (Set incude dir via PBS_PYTHON_INCLUDEDIR variable)'%inc
+        sys.exit(2)
+  
+    for fn in glob.glob('*.h'):
+        os.remove(fn)
+     
+    TORQUE_VERSION='TORQUE_4'
+    SOURCE_FILE='src/C++/pbs_wrap.cxx'
+
+    os.symlink('C++/pbs.py', 'pbs.py')
+
+elif LooseVersion(VERSION) >= LooseVersion('2.4'):
+
+    TORQUE_VERSION='TORQUE_2'
+    SOURCE_FILE='src/C/pbs_wrap.c'
+
+    os.symlink('C/pbs.py', 'pbs.py')
+
+else:
+
+    print "Version: %s is not supported" %(VERSION)
+    sys.exit(1)
+
+
+os.chdir('..')
+
+setup ( 
+    name = 'pbs_python',
+    version = '4.4.0',
+    description = 'openpbs/torque python interface',
+    license = 'LGPLV3',
+    author = 'Bas van der Vlies',
+    author_email = 'bas.vandervlies@surfsara.nl',
+    url = 'http://oss.trac.surfsara.nl/pbs_python',
+
+
+    extra_path = 'pbs',
+        package_dir = { '' : SOURCE_DIR }, 
+        py_modules = [ 'pbs',  'PBSQuery'], 
+
+    ext_modules = [ 
+        Extension( '_pbs', [SOURCE_FILE],
+        library_dirs = [ PBS_LIB_DIR ],
+        extra_link_args = [ PBS_LIB_COMPILE_LINE ],
+        define_macros =  [ (TORQUE_VERSION, None) ],
+        libraries = LIBS,
+        ) 
+    ]
+)
