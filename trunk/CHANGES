@@ -13,6 +13,10 @@
  Author: jens dot timmerman add ugent dot be
  Applied by: Bas van der Vlies
 
+ * The swig development environment to generate the pbs_python package
+   is now available at:
+    - svn co https://oss.trac.surfsara.nl/pbs_python/svn/devel
+
 =========== 4.3.7
  * pbs_jobmonitor/pbs_joblogin ported to torque 2.5 to fix jobarrays
   Author: Willem Vermin (SURFsara)
