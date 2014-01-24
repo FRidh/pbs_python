@@ -41,7 +41,7 @@ if LooseVersion(VERSION) >= LooseVersion('4.2'):
     os.environ['CFLAGS']=' '.join(os.environ.get('CFLAGS','').split(' ')+['-I%s'%inc]) 
     
     if not os.path.exists(os.path.join(inc,'log.h')):
-        print 'Failed to find log.h in inlcude dir %s. (Set incude dir via PBS_PYTHON_INCLUDEDIR variable)'%inc
+        print 'Failed to find log.h in include dir %s. (Set include dir via PBS_PYTHON_INCLUDEDIR variable)'%inc
         sys.exit(2)
   
     for fn in glob.glob('*.h'):
