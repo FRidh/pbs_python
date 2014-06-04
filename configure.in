@@ -1,4 +1,9 @@
-AC_INIT(src/PBSQuery.py)
+#AC_INIT(src/PBSQuery.py)
+
+AC_PREREQ([2.69])
+AC_INIT([pbs-python], [4.4.1])
+AC_CONFIG_SRCDIR([src/C++/pbs_wrap.cxx])
+
 AC_SUBST(prefix)
 AC_SUBST(exec_prefix)
 AC_SUBST(pyexecdir)
