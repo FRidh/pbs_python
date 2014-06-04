@@ -1,5 +1,7 @@
 =========== 4.4.1
- * new_rack_pbsmon.py: Added option -p/--property to filter on torque node properties
+ * new_rack_pbsmon.py: Added option -p/--property to filter on torque node properties. It will show
+   the nodes that meet the property request with a capital M on a non-color terminal and in green on
+   color terminals.
  Requested by: Willem Vermin and Wim Rijks
  Author: Dennis Stam
 
