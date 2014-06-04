@@ -103,7 +103,7 @@ PBS_STATES = {
 ## Color support?
 import curses
 curses.setupterm()
-if curses.tigetnum("colors") > 8:
+if curses.tigetnum("colors") > 2:
     TERMINAL_COLOR=True
 else:
     TERMINAL_COLOR=False

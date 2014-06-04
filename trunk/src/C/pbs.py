@@ -834,8 +834,8 @@ def get_mom_values(id, list = None):
      
   return d
 
-version_info = ( 4, 4, 0 )
-version = 'SARA pbs_python version 4.4.0'
+version_info = ( 4, 4, 1 )
+version = 'SARA pbs_python version 4.4.1'
 
 # A useful dict with error codes to text
 #

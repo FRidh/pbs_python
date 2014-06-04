@@ -1,12 +1,14 @@
 TAR=tar
 GZIP_ENV=--best
 
+PACKAGE_TARNAME=@PACKAGE_TARNAME@
+
 PREFIX=@prefix@
 exec_prefix=$(PREFIX)
 BINDIR=$(PREFIX)/bin
 
-DOCDIR=@docdir@ 
-EXAMPLES=$(DOCDIR)/examples
+DOCDIR=@docdir@
+EXAMPLES=$(PREFIX)/$(DOCDIR)/examples
 
 .PHONY: install pythonlib
 pythonlib:
@@ -16,9 +18,9 @@ pythonlib:
 #install: pythonlib sara_install
 install: pythonlib
 	python ./setup.py install --prefix $(DESTDIR)/$(exec_prefix) ;
-	install -D LICENSE.openpbs $(DESTDIR)/$(DOCDIR)/LICENSE.openpbs
-	install -D COPYING $(DESTDIR)/$(DOCDIR)/COPYING
-	install -D COPYING.LESSER $(DESTDIR)/$(DOCDIR)/COPYING.LESSER
+	install -D LICENSE.openpbs $(DESTDIR)/$(PREFIX)/$(DOCDIR)/LICENSE.openpbs
+	install -D COPYING $(DESTDIR)/$(PREFIX)/$(DOCDIR)/COPYING
+	install -D COPYING.LESSER $(DESTDIR)/$(PREFIX)/$(DOCDIR)/COPYING.LESSER
 	(cd examples; for i in *py; do install -D $$i  $(DESTDIR)/$(EXAMPLES)/$${i}; done)
 
 sara_install:

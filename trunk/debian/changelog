@@ -1,4 +1,10 @@
-pbs-python (4.4.0-1) UNRELEASED; urgency=low
+pbs-python (4.4.1-1) unstable; urgency=low
+
+  * See CHANGES
+
+ -- Dennis Stam <dennis.stam@surfsara.nl>  Wed, 04 Jun 2014 14:37:45 +0200
+
+pbs-python (4.4.0-1) unstable; urgency=low
 
   * See CHANGES
 

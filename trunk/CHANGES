@@ -1,3 +1,11 @@
+=========== 4.4.1
+ * new_rack_pbsmon.py: Added option -p/--property to filter on torque node properties
+ Requested by: Willem Vermin and Wim Rijks
+ Author: Dennis Stam
+
+ * Fixed docdir bug in configure.in and Makefile.in, closes #39
+ Author: Dennis Stam
+
 =========== 4.4.0
  * Drop support for versions older then 2.4
  Author: Bas van der Vlies
