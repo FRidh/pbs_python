@@ -36,6 +36,9 @@ import pbs
 from PBSQuery import PBSQuery
 from PBSQuery import PBSError
 
+## This RE pattern is used for the hostrange
+HOSTRANGE = r'\[([0-9az\-,]+)\]'
+
 # Remark: When both are True, extended view is being printed
 PRINT_TABLE = True
 PRINT_EXTENDED = False
@@ -97,6 +100,14 @@ PBS_STATES = {
     pbs_ND_total            : ' '
 }
 
+## Color support?
+import curses
+curses.setupterm()
+if curses.tigetnum("colors") > 8:
+    TERMINAL_COLOR=True
+else:
+    TERMINAL_COLOR=False
+
 ####
 ## Rewriting the print function, so it will work with all versions of Python
 def _print(*args, **kwargs):
@@ -124,6 +135,21 @@ def _print(*args, **kwargs):
                     write(sep)
                     write(str(a))
                 write(kwargs.get('end', '\n'))
+
+class color:
+    PURPLE = '\033[95m'
+    CYAN = '\033[96m'
+    DARKCYAN = '\033[36m'
+    BLUE = '\033[94m'
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    RED = '\033[91m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+    END = '\033[0m'
+
+def compare_lists(list_a, list_b):
+    return not any(x not in list_b for x in list_a)
 
 ## Import argparse here, as I need the _print function
 try:
@@ -341,6 +367,12 @@ def get_nodes( racknode=False, hosts=None ):
                 nodes_dict[ racknr ][ nodenr ][ 'jobs' ] = sanitize_jobs( attr.jobs )
             else:
                 nodes_dict[ racknr ][ nodenr ][ 'jobs' ] = []
+
+            if attr.has_key( 'properties' ):
+                nodes_dict[ racknr ][ nodenr ][ 'properties' ] = attr.properties
+            else:
+                nodes_dict[ racknr ][ nodenr ][ 'properties' ] = []
+
         else:
             hosts_list.append( node )
             nodes_dict[ node ][ 'state_char' ] = state_char
@@ -350,6 +382,11 @@ def get_nodes( racknode=False, hosts=None ):
                 nodes_dict[ node ][ 'jobs' ] = sanitize_jobs( attr.jobs )
             else:
                 nodes_dict[ node ][ 'jobs' ] = []
+
+            if attr.has_key( 'properties' ):
+                nodes_dict[ node ][ 'properties' ] = attr.properties
+            else:
+                nodes_dict[ node ][ 'properties' ] = []
 
     if not racknode:
         return nodes_dict, hosts_list
@@ -388,7 +425,7 @@ def real_sort( inlist ):
 
     return [ item for index, item in decorated ]
 
-def print_table():
+def print_table(properties=None):
     global START_RACK 
     global OPT_SKIP_EMPTY_RACKS
 
@@ -436,7 +473,13 @@ def print_table():
                 if not nodes.has_key( rack ):
                     continue
             try:
-                _print(nodes[ rack ][ node ][ 'state_char' ], end=' ')
+                if properties and compare_lists(properties,nodes[ rack ][ node ]['properties']):
+                    if TERMINAL_COLOR:
+                        _print(color.GREEN + nodes[ rack ][ node ][ 'state_char' ] + color.END, end=' ')
+                    else:
+                        _print('M', end=' ')
+                else:
+                    _print(nodes[ rack ][ node ][ 'state_char' ], end=' ')
             except KeyError:
                 _print(' ', end=' ')
         _print()
@@ -514,7 +557,7 @@ def print_table_summary():
         if not (n & 1):
             _print()
 
-def print_extended( hosts=None ):
+def print_extended(hosts=None, properties=None):
     global LENGTH_NODE
     global LENGTH_STATE 
     global EXTENDED_PATTERNS
@@ -528,6 +571,10 @@ def print_extended( hosts=None ):
 
     for node in ihosts:
         attr = nodes[ node ]
+
+        if properties and not compare_lists(properties, attr['properties']):
+            continue
+
         row_str = EXTENDED_PATTERNS[ 'row' ] % ( ( LENGTH_NODE + 2 ), node, ( LENGTH_STATE + 2 ), attr[ 'state' ], ','.join( attr[ 'jobs' ] ) )
 
         if len( row_str ) > LENGTH_ROW:
@@ -555,8 +602,10 @@ if __name__ == '__main__':
     parser.add_argument( "-a", "--all", dest="summary", action="store_true", help="Display a short summary" )
     parser.add_argument( "-w", "--wide", dest="wide", action="store_true", help="Wide display for node status ( only when -t is used )" )
     parser.add_argument( "-S", "--servername", dest="servername", help="Change the default servername", default=None )
+    parser.add_argument( "-p", "--properties", dest="properties", help="Show nodes with property, you can use more than 1 property by using , (this is always een and) ie. -p infiniband,mem64gb", default=None)
 
     args = parser.parse_args()
+
     if args.nodes:
         args.nodes = parse_args(args.nodes)
 
@@ -575,10 +624,13 @@ if __name__ == '__main__':
     if args.table and PRINT_EXTENDED:
         args.extended = False
 
+    if args.properties:
+        args.properties = [ item.strip() for item in args.properties.split(',') ]
+
     if args.extended:
-        print_extended( args.nodes ) 
+        print_extended(args.nodes, args.properties) 
     elif args.table:
-        print_table()
+        print_table(args.properties)
     else:
         _print('Something is wrong, bye!', file=sys.stderr)
         sys.exit( -1 )
