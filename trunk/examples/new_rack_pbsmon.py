@@ -603,6 +603,7 @@ if __name__ == '__main__':
     parser.add_argument( "-w", "--wide", dest="wide", action="store_true", help="Wide display for node status ( only when -t is used )" )
     parser.add_argument( "-S", "--servername", dest="servername", help="Change the default servername", default=None )
     parser.add_argument( "-p", "--properties", dest="properties", help="Show nodes with property, you can use more than 1 property by using , (this is always een and) ie. -p infiniband,mem64gb", default=None)
+    parser.add_argument('--version', action='version', version=pbs.version)
 
     args = parser.parse_args()
 
